@@ -61,6 +61,7 @@ using CUE4Parse.UE4.Oodle.Objects;
 using CUE4Parse.UE4.Readers;
 using CUE4Parse.UE4.Shaders;
 using CUE4Parse.UE4.Versions;
+using CUE4Parse.UE4.VirtualFileSystem;
 using CUE4Parse.UE4.Wwise;
 using CUE4Parse.Utils;
 using CUE4Parse_Conversion;
@@ -602,33 +603,57 @@ public class CUE4ParseViewModel : ViewModel
 
     private void BulkFolder(CancellationToken cancellationToken, TreeItem folder, Action<GameFile> action)
     {
-        foreach (var entry in folder.AssetsList.Assets)
+        foreach (var asset in GetEffectiveFolderAssets(folder))
         {
             Thread.Yield();
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
-                action(entry.Asset);
+                action(asset);
             }
             catch
             {
                 // ignore
             }
         }
-
-        foreach (var f in folder.Folders) BulkFolder(cancellationToken, f, action);
     }
 
     public void ExportFolder(CancellationToken cancellationToken, TreeItem folder)
     {
-        Parallel.ForEach(folder.AssetsList.Assets, entry =>
+        Parallel.ForEach(GetEffectiveFolderAssets(folder), asset =>
         {
             cancellationToken.ThrowIfCancellationRequested();
-            ExportData(entry.Asset, false);
+            ExportData(asset, false);
         });
-
-        foreach (var f in folder.Folders) ExportFolder(cancellationToken, f);
     }
+
+    private IEnumerable<GameFile> GetEffectiveFolderAssets(TreeItem folder)
+    {
+        var assetsByPath = new Dictionary<string, GameFile>(Provider.PathComparer);
+        CollectEffectiveFolderAssets(folder, assetsByPath);
+        return assetsByPath.Values;
+    }
+
+    private static void CollectEffectiveFolderAssets(TreeItem folder, IDictionary<string, GameFile> assetsByPath)
+    {
+        foreach (var entry in folder.AssetsList.Assets)
+        {
+            var asset = entry.Asset;
+            if (!assetsByPath.TryGetValue(asset.Path, out var existing) ||
+                GetReadOrder(asset) > GetReadOrder(existing))
+            {
+                assetsByPath[asset.Path] = asset;
+            }
+        }
+
+        foreach (var child in folder.Folders)
+        {
+            CollectEffectiveFolderAssets(child, assetsByPath);
+        }
+    }
+
+    private static long GetReadOrder(GameFile asset)
+        => asset is VfsEntry entry ? entry.Vfs.ReadOrder : 0;
 
     public void ExtractFolder(CancellationToken cancellationToken, TreeItem folder, EBulkType bulk)
         => BulkFolder(cancellationToken, folder, asset => Extract(cancellationToken, asset, TabControl.HasNoTabs, bulk));
