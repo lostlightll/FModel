@@ -1,6 +1,13 @@
 FModel - An Unreal Engine Archives Explorer in C#
 ------------------------------------------
 
+### 自用 FModel 分支
+
+现添加功能有：
+
+- 文件夹递归导出时按资源路径去重，并让更高 VFS ReadOrder 的补丁资源胜出。
+- 批量导出时并行处理资源，并允许配置工作线程数量以提升导出速度。
+
 [![CI Status](https://img.shields.io/github/actions/workflow/status/4sval/FModel/qa.yml?label=CI)](https://github.com/4sval/FModel/actions)
 [![Latest](https://img.shields.io/github/v/release/4sval/FModel?color=yellow)](https://fmodel.app/download)
 [![Donate](https://img.shields.io/badge/sponsor-DB61A2?logo=GitHub-Sponsors&logoColor=white)](https://fmodel.app/donate)
