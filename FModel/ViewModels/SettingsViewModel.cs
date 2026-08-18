@@ -19,6 +19,8 @@ using ICSharpCode.AvalonEdit.Highlighting;
 
 namespace FModel.ViewModels;
 
+public sealed record ExportWorkerOption(int Value, string Label);
+
 public class SettingsViewModel : ViewModel
 {
     private readonly DiscordHandler _discordHandler = DiscordService.DiscordHandler;
@@ -207,6 +209,7 @@ public class SettingsViewModel : ViewModel
     public ReadOnlyObservableCollection<ETextureFormat> TextureExportFormats { get; private set; }
     public ReadOnlyObservableCollection<ETexturePlatform> Platforms { get; private set; }
     public ReadOnlyObservableCollection<EJsonHighlightTheme> JsonHighlightThemes { get; private set; }
+    public ReadOnlyObservableCollection<ExportWorkerOption> ExportWorkerCounts { get; private set; }
 
     private string _outputSnapshot;
     private string _rawDataSnapshot;
@@ -314,6 +317,12 @@ public class SettingsViewModel : ViewModel
         TextureExportFormats = new ReadOnlyObservableCollection<ETextureFormat>(new ObservableCollection<ETextureFormat>(EnumerateTextureExportFormat()));
         Platforms = new ReadOnlyObservableCollection<ETexturePlatform>(new ObservableCollection<ETexturePlatform>(EnumerateUePlatforms()));
         JsonHighlightThemes = new ReadOnlyObservableCollection<EJsonHighlightTheme>(new ObservableCollection<EJsonHighlightTheme>(EnumerateJsonHighlightThemes()));
+        var automaticWorkerCount = BulkExportService.ResolveWorkerCount(0, Environment.ProcessorCount);
+        ExportWorkerCounts = new ReadOnlyObservableCollection<ExportWorkerOption>(new ObservableCollection<ExportWorkerOption>(
+        [
+            new(0, $"Auto ({automaticWorkerCount})"),
+            ..Enumerable.Range(1, 16).Select(static count => new ExportWorkerOption(count, count.ToString()))
+        ]));
     }
 
     public bool Save(out List<SettingsOut> whatShouldIDo)

@@ -179,6 +179,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="FModel.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Resource Include="Resources\android.png" />
     <Resource Include="Resources\apple.png" />
     <Resource Include="Resources\battlebreakers.png" />

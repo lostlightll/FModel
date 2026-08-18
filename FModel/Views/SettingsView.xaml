@@ -46,6 +46,7 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
@@ -273,8 +274,23 @@
                              MaxLength="20"
                              ToolTip="Enter decryption key in numeric or hexadecimal format (valid key is up to 20 digits or 8 bytes long)"
                              TextAlignment="Right"
-                             TextChanged="CriwareKeyBox_TextChanged"
-                             Loaded="CriwareKeyBox_Loaded"/>
+                              TextChanged="CriwareKeyBox_TextChanged"
+                              Loaded="CriwareKeyBox_Loaded"/>
+
+                    <TextBlock Grid.Row="22"
+                               Grid.Column="0"
+                               Text="Export Workers"
+                               VerticalAlignment="Center"
+                               Margin="0 0 0 5"
+                               ToolTip="Maximum number of assets exported concurrently" />
+                    <ComboBox Grid.Row="22"
+                              Grid.Column="2"
+                              Grid.ColumnSpan="5"
+                              Margin="0 0 0 5"
+                              ItemsSource="{Binding SettingsView.ExportWorkerCounts}"
+                              DisplayMemberPath="Label"
+                              SelectedValuePath="Value"
+                              SelectedValue="{Binding ExportWorkerCount, Source={x:Static local:Settings.UserSettings.Default}, Mode=TwoWay}" />
 
                 </Grid>
             </DataTemplate>

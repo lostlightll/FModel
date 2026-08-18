@@ -1,15 +1,12 @@
 using System;
 using System.Collections;
-using System.Data;
-using System.IO;
 using System.Linq;
 using System.Threading;
 using CUE4Parse.FileProvider.Objects;
-using CUE4Parse.Utils;
 using FModel.Framework;
 using FModel.Services;
-using FModel.Settings;
 using FModel.Views.Resources.Controls;
+using Serilog;
 
 namespace FModel.ViewModels.Commands;
 
@@ -55,7 +52,6 @@ public class RightClickMenuCommand : ViewModelCommand<ApplicationViewModel>
         if (folders.Length == 0 && assets.Length == 0)
             return;
 
-        var assetsGroups = assets.GroupBy(static gf => gf.Directory);
         var (action, showtype, bulktype) = trigger switch
         {
             "Assets_Extract_New_Tab" => (EAction.Show, EShowAssetType.JSON, EBulkType.None),
@@ -74,8 +70,6 @@ public class RightClickMenuCommand : ViewModelCommand<ApplicationViewModel>
             _ => throw new ArgumentOutOfRangeException("Unsupported asset action."),
         };
 
-        Interlocked.Exchange(ref contextViewModel.CUE4Parse.ExportedCount, 0);
-        Interlocked.Exchange(ref contextViewModel.CUE4Parse.FailedExportCount, 0);
         await _threadWorkerView.Begin(cancellationToken =>
         {
             if (action is EAction.Show)
@@ -102,92 +96,58 @@ public class RightClickMenuCommand : ViewModelCommand<ApplicationViewModel>
                 return;
             }
 
-            var (dirType, filetype) = bulktype switch
+            var fileType = bulktype switch
             {
-                EBulkType.Raw => (UserSettings.Default.RawDataDirectory, "files"),
-                EBulkType.Properties => (UserSettings.Default.PropertiesDirectory, "json files"),
-                EBulkType.Textures => (UserSettings.Default.TextureDirectory, "textures"),
-                EBulkType.Meshes => (UserSettings.Default.ModelDirectory, "models"),
-                EBulkType.Animations => (UserSettings.Default.ModelDirectory, "animations"),
-                EBulkType.Audio => (UserSettings.Default.AudioDirectory, "audio files"),
-                EBulkType.Code => (UserSettings.Default.CodeDirectory, "code files"),
-                _ => (null, null),
+                EBulkType.Raw => "files",
+                EBulkType.Properties => "json files",
+                EBulkType.Textures => "textures",
+                EBulkType.Meshes => "models",
+                EBulkType.Animations => "animations",
+                EBulkType.Audio => "audio files",
+                EBulkType.Code => "code files",
+                _ => throw new ArgumentOutOfRangeException(nameof(bulktype), bulktype, "Unsupported bulk export type"),
             };
 
-            if (string.IsNullOrEmpty(dirType))
-                return;
-
-            Action<TreeItem> folderAction = bulktype switch
-            {
-                EBulkType.Raw => folder => contextViewModel.CUE4Parse.ExportFolder(cancellationToken, folder),
-                _ => folder => contextViewModel.CUE4Parse.ExtractFolder(cancellationToken, folder, bulktype | EBulkType.Auto),
-            };
-
-            foreach (var folder in folders)
+            var batchAssets = new System.Collections.Generic.List<GameFile>();
+            foreach (var item in param)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                folderAction(folder);
-
-                var path = Path.Combine(dirType, UserSettings.Default.KeepDirectoryStructure ? folder.PathAtThisPoint : folder.PathAtThisPoint.SubstringAfterLast('/')).Replace('\\', '/');
-                LogExport(contextViewModel, folder.PathAtThisPoint, path, dirType, filetype);
-            }
-
-            Action<GameFile, EBulkType, bool> fileAction = bulktype switch
-            {
-                EBulkType.Raw => (entry, _, update) => contextViewModel.CUE4Parse.ExportData(entry, !update),
-                _ => (entry, bulk, update) => contextViewModel.CUE4Parse.Extract(cancellationToken, entry, false, bulk),
-            };
-
-            foreach (var group in assetsGroups)
-            {
-                var directory = group.Key;
-                var list = group.ToArray();
-                var update = list.Length > 1;
-                var bulk = bulktype | (update ? EBulkType.Auto : EBulkType.None);
-                foreach (var entry in list)
+                switch (item)
                 {
-                    Thread.Yield();
-                    cancellationToken.ThrowIfCancellationRequested();
-                    fileAction(entry, bulk, update);
-                }
-
-                if (update)
-                {
-                    var path = Path.Combine(dirType, UserSettings.Default.KeepDirectoryStructure ? directory : directory.SubstringAfterLast('/')).Replace('\\', '/');
-                    LogExport(contextViewModel, directory, path, dirType, filetype);
+                    case TreeItem folder:
+                        batchAssets.AddRange(contextViewModel.CUE4Parse.GetEffectiveFolderAssets(folder));
+                        break;
+                    case GameFile gameFile:
+                        batchAssets.Add(gameFile);
+                        break;
+                    case GameFileViewModel gameFileViewModel:
+                        batchAssets.Add(gameFileViewModel.Asset);
+                        break;
                 }
             }
+
+            var summary = contextViewModel.CUE4Parse.ExportBulk(batchAssets, bulktype, cancellationToken);
+            Log.Information(
+                "Bulk export completed: Type={BulkType} Assets={AssetCount} Processed={ProcessedAssetCount} Matched={MatchedAssetCount} Files={ExportedFileCount} Failed={FailedAssetCount} Workers={WorkerCount} ElapsedMs={ElapsedMilliseconds} OutputDirectory={OutputDirectory}",
+                bulktype, summary.AssetCount, summary.ProcessedAssetCount, summary.MatchedAssetCount,
+                summary.ExportedFileCount, summary.FailedAssetCount, summary.WorkerCount,
+                summary.Elapsed.TotalMilliseconds, summary.OutputDirectory);
+            LogExportSummary(summary, fileType);
         });
     }
 
-    private void LogExport(ApplicationViewModel contextViewModel, string directory, string path, string basePath, string fileType)
+    private static void LogExportSummary(BulkExportSummary summary, string fileType)
     {
-        if (contextViewModel.CUE4Parse.ExportedCount > 0)
+        var severity = summary.FailedAssetCount > 0
+            ? ELog.Error
+            : summary.ExportedFileCount > 0 ? ELog.Information : ELog.Warning;
+        FLogger.Append(severity, () =>
         {
-            FLogger.Append(ELog.Information, () =>
-            {
-                FLogger.Text($"Successfully exported {contextViewModel.CUE4Parse.ExportedCount} {fileType} from ", Constants.WHITE);
-                FLogger.Link(directory, Path.Exists(path) ? path : basePath, true);
-            });
-        }
-        else if (contextViewModel.CUE4Parse.FailedExportCount == 0)
-        {
-            // Not an error because folder simply might not contain type of asset user is trying to save
-            FLogger.Append(ELog.Warning, () =>
-            {
-                FLogger.Text($"Failed to find any {fileType} in {directory}", Constants.WHITE, true);
-            });
-        }
-
-        if (contextViewModel.CUE4Parse.FailedExportCount > 0)
-        {
-            FLogger.Append(ELog.Error, () =>
-            {
-                FLogger.Text($"Failed to export {contextViewModel.CUE4Parse.FailedExportCount} {fileType} from {directory}", Constants.WHITE, true);
-            });
-        }
-
-        Interlocked.Exchange(ref contextViewModel.CUE4Parse.ExportedCount, 0);
-        Interlocked.Exchange(ref contextViewModel.CUE4Parse.FailedExportCount, 0);
+            FLogger.Text(
+                $"Exported {summary.ExportedFileCount} {fileType} from {summary.AssetCount} assets " +
+                $"({summary.FailedAssetCount} failed, {summary.WorkerCount} workers, {summary.Elapsed.TotalSeconds:F1}s) to ",
+                Constants.WHITE);
+            FLogger.Link(summary.OutputDirectory, summary.OutputDirectory, true);
+        });
     }
 }

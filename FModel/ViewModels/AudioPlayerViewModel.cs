@@ -590,12 +590,12 @@ public class AudioPlayerViewModel : ViewModel, ISource, IDisposable
         {
             case "hca":
             case "adx":
-                return TryConvertCriware(inputFilePath, inputFileData, extension, out wavFilePath);
+                return TryConvertCriware(inputFilePath, inputFileData, extension, out wavFilePath, updateUi);
             case "rada":
                 return TryConvertRada(inputFilePath, inputFileData, extension, out wavFilePath, updateUi);
             default:
             {
-                var vgmStreamPath = TryGetVgmstreamPath();
+                var vgmStreamPath = TryGetVgmstreamPath(updateUi);
                 if (string.IsNullOrEmpty(vgmStreamPath))
                     return false;
 
@@ -620,7 +620,12 @@ public class AudioPlayerViewModel : ViewModel, ISource, IDisposable
         }
     }
 
-    private static bool TryConvertCriware(string inputFilePath, byte[] inputFileData, string extension, out string wavFilePath)
+    private static bool TryConvertCriware(
+        string inputFilePath,
+        byte[] inputFileData,
+        string extension,
+        out string wavFilePath,
+        bool updateUi)
     {
         wavFilePath = string.Empty;
 
@@ -636,7 +641,7 @@ public class AudioPlayerViewModel : ViewModel, ISource, IDisposable
             // Fallback for ADX
             if (wavData.Length == 0)
             {
-                var vgmStreamPath = TryGetVgmstreamPath();
+                var vgmStreamPath = TryGetVgmstreamPath(updateUi);
                 if (string.IsNullOrEmpty(vgmStreamPath))
                     return false;
 
@@ -655,14 +660,16 @@ public class AudioPlayerViewModel : ViewModel, ISource, IDisposable
         }
         catch (CriwareDecryptionException ex)
         {
-            FLogger.Append(ELog.Error, () => FLogger.Text($"Encrypted {extension.ToUpper()}: {ex.Message}", Constants.WHITE, true));
+            if (updateUi)
+                FLogger.Append(ELog.Error, () => FLogger.Text($"Encrypted {extension.ToUpper()}: {ex.Message}", Constants.WHITE, true));
             Log.Error($"Encrypted {extension.ToUpper()}: {ex.Message}");
 
             return false;
         }
         catch (Exception ex)
         {
-            FLogger.Append(ELog.Error, () => FLogger.Text($"Failed to convert {extension.ToUpper()}: {ex.Message}", Constants.WHITE, true));
+            if (updateUi)
+                FLogger.Append(ELog.Error, () => FLogger.Text($"Failed to convert {extension.ToUpper()}: {ex.Message}", Constants.WHITE, true));
             Log.Error($"Failed to convert {extension.ToUpper()}: {ex.Message}");
 
             return false;
@@ -723,7 +730,7 @@ public class AudioPlayerViewModel : ViewModel, ISource, IDisposable
         return success;
     }
 
-    private static string TryGetVgmstreamPath()
+    private static string TryGetVgmstreamPath(bool updateUi)
     {
         var vgmFilePath = Path.Combine(UserSettings.Default.OutputDirectory, ".data", "test.exe");
         if (!File.Exists(vgmFilePath))
@@ -732,11 +739,14 @@ public class AudioPlayerViewModel : ViewModel, ISource, IDisposable
             if (!File.Exists(vgmFilePath))
             {
                 Log.Error("Failed to convert audio, vgmstream is missing");
-                FLogger.Append(ELog.Error, () =>
+                if (updateUi)
                 {
-                    FLogger.Text("Failed to convert audio because vgmstream is missing. See: ", Constants.WHITE);
-                    FLogger.Link("→ link ←", Constants.AUDIO_ISSUE_LINK, true);
-                });
+                    FLogger.Append(ELog.Error, () =>
+                    {
+                        FLogger.Text("Failed to convert audio because vgmstream is missing. See: ", Constants.WHITE);
+                        FLogger.Link("→ link ←", Constants.AUDIO_ISSUE_LINK, true);
+                    });
+                }
 
                 return string.Empty;
             }
@@ -746,9 +756,9 @@ public class AudioPlayerViewModel : ViewModel, ISource, IDisposable
     }
 
     // Since Square Enix soundbanks are pretty niche, let's just use vgmstream to extract them
-    public static List<string> ExtractSquareEnixAudio(string sabPath, byte[] sqexData)
+    public static List<string> ExtractSquareEnixAudio(string sabPath, byte[] sqexData, bool updateUi = false)
     {
-        var vgmStreamPath = TryGetVgmstreamPath();
+        var vgmStreamPath = TryGetVgmstreamPath(updateUi);
         if (string.IsNullOrEmpty(vgmStreamPath))
             return [];
         if (sqexData.Length == 0)

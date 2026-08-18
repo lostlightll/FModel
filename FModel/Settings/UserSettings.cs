@@ -205,6 +205,13 @@ namespace FModel.Settings
             set => SetProperty(ref _keepDirectoryStructure, value);
         }
 
+        private int _exportWorkerCount;
+        public int ExportWorkerCount
+        {
+            get => _exportWorkerCount;
+            set => SetProperty(ref _exportWorkerCount, Math.Clamp(value, 0, 16));
+        }
+
         private bool _showDecompileOption = false;
         public bool ShowDecompileOption
         {

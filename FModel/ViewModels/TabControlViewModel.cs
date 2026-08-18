@@ -330,6 +330,13 @@ public class TabItem : ViewModel
 
     public void AddImage(string name, bool rnn, CTexture img, bool save, bool updateUi)
     {
+        if (!updateUi)
+        {
+            var tabImage = new TabImage(name, rnn, img);
+            if (save) SaveImage(tabImage, false);
+            return;
+        }
+
         Application.Current.Dispatcher.Invoke(() =>
         {
             var t = new TabImage(name, rnn, img);
@@ -345,6 +352,13 @@ public class TabItem : ViewModel
 
     public void AddImage(string name, bool rnn, SKBitmap img, bool save, bool updateUi)
     {
+        if (!updateUi)
+        {
+            var tabImage = new TabImage(name, rnn, img);
+            if (save) SaveImage(tabImage, false);
+            return;
+        }
+
         Application.Current.Dispatcher.Invoke(() =>
         {
             var t = new TabImage(name, rnn, img);
@@ -363,6 +377,15 @@ public class TabItem : ViewModel
 
     public void SetDocumentText(string text, bool save, bool updateUi)
     {
+        if (!updateUi)
+        {
+            Document ??= new TextDocument();
+            Document.Text = text;
+            Document.UndoStack.ClearAll();
+            if (save) SaveProperty(false);
+            return;
+        }
+
         Application.Current.Dispatcher.Invoke(() =>
         {
             Document ??= new TextDocument();
@@ -378,7 +401,8 @@ public class TabItem : ViewModel
     {
         if (image is null) return;
 
-        var path = Path.Combine(UserSettings.Default.TextureDirectory, UserSettings.Default.KeepDirectoryStructure ? Entry.Directory : "", image.ExportName).Replace('\\', '/');
+        var outputRoot = BulkExportExecution.GetOutputRoot(UserSettings.Default.TextureDirectory);
+        var path = Path.Combine(outputRoot, UserSettings.Default.KeepDirectoryStructure ? Entry.Directory : "", image.ExportName).Replace('\\', '/');
 
         Directory.CreateDirectory(path.SubstringBeforeLast('/'));
 
@@ -401,31 +425,38 @@ public class TabItem : ViewModel
     public void SaveProperty(bool updateUi)
     {
         var fileName = Path.ChangeExtension(Entry.Name, ".json");
-        var directory = Path.Combine(UserSettings.Default.PropertiesDirectory,
+        var outputRoot = BulkExportExecution.GetOutputRoot(UserSettings.Default.PropertiesDirectory);
+        var directory = Path.Combine(outputRoot,
             UserSettings.Default.KeepDirectoryStructure ? Entry.Directory : "", fileName).Replace('\\', '/');
 
         Directory.CreateDirectory(directory.SubstringBeforeLast('/'));
 
-        Application.Current.Dispatcher.Invoke(() => File.WriteAllText(directory, Document.Text));
+        if (BulkExportExecution.IsActive) File.WriteAllText(directory, Document.Text);
+        else Application.Current.Dispatcher.Invoke(() => File.WriteAllText(directory, Document.Text));
         SaveCheck(directory, fileName, updateUi);
     }
     public void SaveDecompiled(bool updateUi)
     {
         var fileName = Path.ChangeExtension(Entry.Name, ".cpp");
-        var directory = Path.Combine(UserSettings.Default.PropertiesDirectory,
+        var outputRoot = BulkExportExecution.GetOutputRoot(UserSettings.Default.CodeDirectory);
+        var directory = Path.Combine(outputRoot,
             UserSettings.Default.KeepDirectoryStructure ? Entry.Directory : "", fileName).Replace('\\', '/');
 
         Directory.CreateDirectory(directory.SubstringBeforeLast('/'));
 
-        Application.Current.Dispatcher.Invoke(() => File.WriteAllText(directory, Document.Text));
+        if (BulkExportExecution.IsActive) File.WriteAllText(directory, Document.Text);
+        else Application.Current.Dispatcher.Invoke(() => File.WriteAllText(directory, Document.Text));
         SaveCheck(directory, fileName, updateUi);
     }
     private void SaveCheck(string path, string fileName, bool updateUi)
     {
         if (File.Exists(path))
         {
-            Interlocked.Increment(ref ApplicationService.ApplicationView.CUE4Parse.ExportedCount);
-            Log.Information("{FileName} successfully saved", fileName);
+            if (!BulkExportExecution.IsActive)
+            {
+                Interlocked.Increment(ref ApplicationService.ApplicationView.CUE4Parse.ExportedCount);
+                Log.Information("{FileName} successfully saved", fileName);
+            }
             if (updateUi)
             {
                 FLogger.Append(ELog.Information, () =>
@@ -437,6 +468,9 @@ public class TabItem : ViewModel
         }
         else
         {
+            if (BulkExportExecution.IsActive)
+                throw new IOException($"Could not save '{fileName}'");
+
             Interlocked.Increment(ref ApplicationService.ApplicationView.CUE4Parse.FailedExportCount);
             Log.Error("{FileName} could not be saved", fileName);
             if (updateUi)
