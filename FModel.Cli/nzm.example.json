@@ -1,0 +1,6 @@
+{
+  "Game": "GAME_AssaultFireFuture",
+  "Directory": "D:\\NZM",
+  "OutputDirectory": "D:\\Claude\\FModel\\.local\\exports",
+  "AesKeyEnvironmentVariable": "FMODEL_AES_KEY"
+}
