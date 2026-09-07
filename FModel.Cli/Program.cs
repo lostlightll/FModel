@@ -16,8 +16,13 @@ try
         return 0;
     }
     stage = "profile";
-    var profile = JsonConvert.DeserializeObject<GameProfile>(File.ReadAllText(options.Required("profile")),
+    var profilePath = Path.GetFullPath(options.Required("profile"));
+    var profile = JsonConvert.DeserializeObject<GameProfile>(File.ReadAllText(profilePath),
         new JsonSerializerSettings { MissingMemberHandling = MissingMemberHandling.Error }) ?? throw new ArgumentException("Empty profile.");
+    var profileDirectory = Path.GetDirectoryName(profilePath)!;
+    profile.Directory = ProfilePaths.Resolve(profile.Directory, profileDirectory);
+    profile.OutputDirectory = ProfilePaths.Resolve(profile.OutputDirectory, profileDirectory);
+    if (profile.Mappings is not null) profile.Mappings = ProfilePaths.Resolve(profile.Mappings, profileDirectory);
     stage = "mount";
     using var session = new GameSession(profile);
     var complete = session.Provider.MountedVfs.Count > 0 && session.Provider.UnloadedVfs.Count == 0;

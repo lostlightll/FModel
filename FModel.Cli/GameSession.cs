@@ -10,11 +10,11 @@ namespace FModel.Cli;
 public sealed class GameProfile
 {
     public string Game { get; init; } = "GAME_AssaultFireFuture";
-    public string Directory { get; init; } = "";
-    public string OutputDirectory { get; init; } = "";
+    public string Directory { get; set; } = "";
+    public string OutputDirectory { get; set; } = "";
     public string? AesKey { get; init; }
     public string AesKeyEnvironmentVariable { get; init; } = "FMODEL_AES_KEY";
-    public string? Mappings { get; init; }
+    public string? Mappings { get; set; }
 }
 
 internal sealed class GameSession : IDisposable

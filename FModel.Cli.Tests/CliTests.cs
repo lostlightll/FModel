@@ -2,6 +2,19 @@ using FModel.Cli;
 
 public sealed class CliTests
 {
+    [Fact]
+    public void RelativeProfilePathsUseProfileDirectory()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "fmodel-profile");
+        Assert.Equal(Path.Combine(root, "exports"), ProfilePaths.Resolve("exports", root));
+        Assert.Equal(root, ProfilePaths.Resolve(root, Path.GetTempPath()));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    public void EmptyProfilePathsFail(string path) => Assert.Throws<ArgumentException>(() => ProfilePaths.Resolve(path, Path.GetTempPath()));
+
     [Theory]
     [InlineData("unknown", "--profile", "x")]
     [InlineData("mount", "--unknown", "x")]

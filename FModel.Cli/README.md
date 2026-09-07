@@ -15,8 +15,8 @@ dotnet FModel.Cli/bin/Release/net10.0/FModel.Cli.dll mount --profile D:/Claude/F
 dotnet FModel.Cli/bin/Release/net10.0/FModel.Cli.dll search --profile D:/Claude/FModel/.local/nzm.json --query Weapon --extension uasset --limit 20
 ```
 
-`nzm.example.json` documents the profile fields. Both directories must be absolute
-and must not overlap. `Directory` is scanned recursively, including patch folders.
+`nzm.example.json` documents the profile fields. Relative paths are resolved from
+the profile directory; input and output must not overlap. `Directory` is scanned recursively, including patch folders.
 `Game` defaults to `GAME_AssaultFireFuture`; do not replace it with generic UE4.24.
 
 Provide the key in the environment variable named by `AesKeyEnvironmentVariable`
@@ -24,6 +24,19 @@ Provide the key in the environment variable named by `AesKeyEnvironmentVariable`
 The environment takes precedence. Never commit keys. The repository ignores
 `.local/`, but this is not encryption or an access-control boundary.
 An optional `Mappings` property accepts an existing absolute `.usmap` path.
+
+## Standalone Windows package
+
+```powershell
+./FModel.Cli/Publish.ps1 -PrivateProfile D:/Claude/FModel/.local/nzm.json
+```
+
+Creates a timestamped, self-contained Windows x64 package and ZIP under
+`artifacts/`. The package includes `nzm.cmd`, usage instructions, licenses, and
+your private profile with output set to `exports/` beside the profile. No .NET
+installation is needed on the target machine. Run `./nzm.cmd search --query Weapon`
+from the extracted directory. The ZIP contains the configured key: do not publish
+it without removing private settings. Optional mappings remain external files.
 
 ## Commands
 

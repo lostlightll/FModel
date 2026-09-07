@@ -13,5 +13,6 @@
     <Using Include="Xunit" />
     <Compile Include="../FModel.Cli/CliOptions.cs" Link="CliOptions.cs" />
     <Compile Include="../FModel.Cli/OutputFiles.cs" Link="OutputFiles.cs" />
+    <Compile Include="../FModel.Cli/ProfilePaths.cs" Link="ProfilePaths.cs" />
   </ItemGroup>
 </Project>
