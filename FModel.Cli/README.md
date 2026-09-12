@@ -11,8 +11,8 @@ From the repository root:
 ```powershell
 dotnet build FModel.Cli/FModel.Cli.csproj -c Release
 dotnet FModel.Cli/bin/Release/net10.0/FModel.Cli.dll --help
-dotnet FModel.Cli/bin/Release/net10.0/FModel.Cli.dll mount --profile D:/Claude/FModel/.local/nzm.json
-dotnet FModel.Cli/bin/Release/net10.0/FModel.Cli.dll search --profile D:/Claude/FModel/.local/nzm.json --query Weapon --extension uasset --limit 20
+dotnet FModel.Cli/bin/Release/net10.0/FModel.Cli.dll mount --profile .local/nzm.json
+dotnet FModel.Cli/bin/Release/net10.0/FModel.Cli.dll search --profile .local/nzm.json --query Weapon --extension uasset --limit 20
 ```
 
 `nzm.example.json` documents the profile fields. Relative paths are resolved from
@@ -23,12 +23,13 @@ Provide the key in the environment variable named by `AesKeyEnvironmentVariable`
 (default: `FMODEL_AES_KEY`), or in an `AesKey` property in a private local profile.
 The environment takes precedence. Never commit keys. The repository ignores
 `.local/`, but this is not encryption or an access-control boundary.
-An optional `Mappings` property accepts an existing absolute `.usmap` path.
+An optional `Mappings` property accepts an existing `.usmap` path. Like the
+directory fields, relative paths are resolved from the profile directory.
 
 ## Standalone Windows package
 
 ```powershell
-./FModel.Cli/Publish.ps1 -PrivateProfile D:/Claude/FModel/.local/nzm.json
+./FModel.Cli/Publish.ps1 -PrivateProfile .local/nzm.json
 ```
 
 Creates a timestamped, self-contained Windows x64 package and ZIP under
@@ -53,8 +54,8 @@ Use `inspect` for Unreal packages, not arbitrary loose files or localization fil
 Raw extraction is not conversion into PNG, WAV, FBX, or a reimportable project.
 
 ```powershell
-dotnet FModel.Cli/bin/Release/net10.0/FModel.Cli.dll inspect --profile D:/Claude/FModel/.local/nzm.json --asset NZM/Content/AIBehavior/BaseAIBluprints/DataConfig/DataAsset/AITarget/DA_AITarget_WeaponFriend.uasset
-dotnet FModel.Cli/bin/Release/net10.0/FModel.Cli.dll extract --profile D:/Claude/FModel/.local/nzm.json --asset NZM/Content/AIBehavior/BaseAIBluprints/DataConfig/DataAsset/AITarget/DA_AITarget_WeaponFriend.uasset
+dotnet FModel.Cli/bin/Release/net10.0/FModel.Cli.dll inspect --profile .local/nzm.json --asset NZM/Content/AIBehavior/BaseAIBluprints/DataConfig/DataAsset/AITarget/DA_AITarget_WeaponFriend.uasset
+dotnet FModel.Cli/bin/Release/net10.0/FModel.Cli.dll extract --profile .local/nzm.json --asset NZM/Content/AIBehavior/BaseAIBluprints/DataConfig/DataAsset/AITarget/DA_AITarget_WeaponFriend.uasset
 ```
 
 Each command emits one JSON response to stdout; help is plain text. Library
@@ -100,7 +101,7 @@ non-overwrite behavior, and failed-write cleanup without requiring game data.
 An optional local integration test exercises the real CLI and game files:
 
 ```powershell
-./FModel.Cli.Tests/Smoke.ps1 -Profile D:/Claude/FModel/.local/nzm.json
+./FModel.Cli.Tests/Smoke.ps1 -Profile .local/nzm.json
 ```
 
 The smoke test creates a temporary profile and output under the system temp

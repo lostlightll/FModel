@@ -7,7 +7,7 @@ description: Search NZM / AssaultFireFuture game packages, inspect Unreal asset 
 
 Use the installed Windows x64 CLI through [scripts/Invoke-Nzm.ps1](scripts/Invoke-Nzm.ps1).
 It reads the shared private game profile without displaying its AES key and writes
-new exports under this project's ignored `MD/_local/nzm-assets/<run-id>/exports/`.
+new exports under the selected project's ignored `.local/nzm-assets/<run-id>/exports/`.
 It needs the local FModel installation, not the .NET SDK.
 
 ## Run
@@ -15,13 +15,18 @@ It needs the local FModel installation, not the .NET SDK.
 From the project root, use PowerShell (not Bash):
 
 ```powershell
-$tool = '.agents/skills/nzm-assets/scripts/Invoke-Nzm.ps1'
+$tool = '<path-to-skill>/scripts/Invoke-Nzm.ps1'
+$env:FMODEL_CLI_PATH = '<path-to-FModel.Cli.exe>'
+$env:FMODEL_PROFILE = '<path-to-private-profile.json>'
 & $tool -Command mount
 & $tool -Command search -Query Weapon -Extension uasset -Limit 20
 & $tool -Command search -Query Weapon -Extension uasset -Offset 20 -Limit 20
 & $tool -Command inspect -Asset 'NZM/Content/exact/path/from/search.uasset'
 & $tool -Command extract -Asset 'NZM/Content/exact/path/from/search.uasset'
 ```
+
+Pass `-CliPath`, `-Profile`, or `-ProjectRoot` explicitly to override the
+environment and current Git worktree for a single invocation.
 
 Search by path/name substring, not by JSON property value. Start with a relevant
 identifier or English asset-name fragment; use exact returned virtual paths for
@@ -59,8 +64,8 @@ such as .uexp/.ubulk. It does not convert assets to PNG, WAV, FBX, or glTF.
   The helper's temporary private profile is removed in a finally block; forced
   process termination may leave it in ignored local output.
 - Missing EXE/profile: report the missing prerequisite; use `-CliPath` and
-  `-Profile` for explicit alternate local installations. Do not download or build
-  tools automatically. Defaults are listed at the top of the helper.
+  `-Profile`, or set `FMODEL_CLI_PATH` and `FMODEL_PROFILE`. Do not download or
+  build tools automatically.
 - On parser/mount failure, check the returned stage and stderr. Unknown-format
   warnings for launcher Chromium .pak files are distinct from Unreal parse errors.
   Mount success is not a guarantee that every asset parses. Stop repeated retries

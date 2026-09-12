@@ -6,11 +6,14 @@ param(
     [ValidateRange(0, 2147483647)][int]$Offset = 0,
     [ValidateRange(1, 200)][int]$Limit = 50,
     [string]$Asset,
-    [string]$CliPath = 'D:/Claude/FModel/artifacts/FModel-CLI-NZM-win-x64-20260907-135108/FModel.Cli.exe',
-    [string]$Profile = 'D:/Claude/FModel/.local/nzm.json'
+    [string]$CliPath = $env:FMODEL_CLI_PATH,
+    [string]$Profile = $env:FMODEL_PROFILE,
+    [string]$ProjectRoot
 )
 
 $ErrorActionPreference = 'Stop'
+if ([string]::IsNullOrWhiteSpace($CliPath)) { throw 'Provide -CliPath or set FMODEL_CLI_PATH.' }
+if ([string]::IsNullOrWhiteSpace($Profile)) { throw 'Provide -Profile or set FMODEL_PROFILE.' }
 if (!(Test-Path -LiteralPath $CliPath -PathType Leaf)) { throw 'FModel EXE not found; provide -CliPath.' }
 if (!(Test-Path -LiteralPath $Profile -PathType Leaf)) { throw 'Private game profile not found; provide -Profile.' }
 if ($Command -in @('inspect', 'extract') -and [string]::IsNullOrWhiteSpace($Asset)) { throw '-Asset is required.' }
@@ -19,16 +22,22 @@ if ($Command -ne 'search' -and ($PSBoundParameters.ContainsKey('Query') -or $PSB
 }
 if ($Command -notin @('inspect', 'extract') -and $PSBoundParameters.ContainsKey('Asset')) { throw 'Asset is inspect/extract-only.' }
 
-$project = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../../..'))
-$run = Join-Path $project ('MD/_local/nzm-assets/' + [guid]::NewGuid().ToString('N'))
+if ([string]::IsNullOrWhiteSpace($ProjectRoot)) {
+    $ProjectRoot = (& git -C (Get-Location) rev-parse --show-toplevel 2>$null)
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($ProjectRoot)) {
+        throw 'Run from a Git worktree or provide -ProjectRoot.'
+    }
+}
+$project = [IO.Path]::GetFullPath($ProjectRoot)
+$run = Join-Path $project ('.local/nzm-assets/' + [guid]::NewGuid().ToString('N'))
 # Keep temporary credentials out of linked directories and tracked locations.
 for ($current = $run; $current; $current = Split-Path -Parent $current) {
     if ((Test-Path -LiteralPath $current) -and ((Get-Item -LiteralPath $current -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)) {
         throw 'Local output cannot contain symbolic links or junctions.'
     }
 }
-& git -C $project check-ignore -q -- 'MD/_local/nzm-assets/profile.json'
-if ($LASTEXITCODE -ne 0) { throw 'MD/_local/nzm-assets must be Git-ignored before storing a private temporary profile.' }
+& git -C $project check-ignore -q -- '.local/nzm-assets/profile.json'
+if ($LASTEXITCODE -ne 0) { throw '.local/nzm-assets must be Git-ignored before storing a private temporary profile.' }
 
 $config = Get-Content -LiteralPath $Profile -Raw | ConvertFrom-Json
 $base = Split-Path -Parent ([IO.Path]::GetFullPath($Profile))
