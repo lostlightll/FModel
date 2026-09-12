@@ -8,5 +8,6 @@
   <ItemGroup>
     <ProjectReference Include="../CUE4Parse/CUE4Parse/CUE4Parse.csproj" />
     <InternalsVisibleTo Include="FModel.Cli.Tests" />
+    <EmbeddedResource Include="Lua/OPCODE-SOURCES.md" LogicalName="FModel.Cli.Lua.OPCODE-SOURCES.md" />
   </ItemGroup>
 </Project>

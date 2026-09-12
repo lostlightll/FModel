@@ -50,11 +50,16 @@ it without removing private settings. Optional mappings remain external files.
 | `containers` | `--profile`, optional `--query`, `--offset`, `--limit` | Mounted containers with exact disk path, size, entry count and ReadOrder |
 | `list` | `--profile`, `--container`, optional `--query`, `--offset`, `--limit` | Only selected container's own entries: virtual path, uncompressed size, source |
 | `diff` | `--profile`, `--container`, `--asset`, optional `--against`, `--max-differences`, `--max-depth`, `--max-nodes` | Bounded field differences against a previous or explicitly selected container |
+| `lua-functions` | `--profile`, `--container`, `--asset`, optional `--dialect`, `--query`, `--offset`, `--limit` | Bounded Lua function inventory |
+| `lua-disasm` | Same source options, `--function`, optional `--offset`, `--limit` | Function-level bytecode disassembly, never execution |
+| `lua-diff` | Same source options, optional `--against`, `--function`, `--max-changes`, `--max-work`, pagination | Lua/slua function and instruction differences |
 | `inspect` | `--profile`, `--asset`, optional `--output-directory` | Parse all package exports into `json/<asset>.json`; return path and byte count |
 | `extract` | `--profile`, `--asset`, optional `--output-directory` | Decrypt/decompress original package plus associated payloads into `raw/` |
 
 `--asset` takes the exact virtual path returned by `search`, not a disk path.
 There is deliberately no wildcard extraction or automatic full-game export.
+See [the Lua JSON contract](Lua/README.md) for dialect validation, stable identities,
+root-only scope, normalization, resource limits and incomplete-result semantics.
 Use `inspect` for Unreal packages, not arbitrary loose files or localization files.
 Raw extraction is not conversion into PNG, WAV, FBX, or a reimportable project.
 
