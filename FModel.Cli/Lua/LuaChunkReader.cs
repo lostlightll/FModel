@@ -167,11 +167,13 @@ internal static class LuaChunkReader
                 }
                 constants[i] = new(tag, value);
             }
-            var upvalues = new LuaUpvalue[Count(2)]; for (var i = 0; i < upvalues.Length; i++) upvalues[i] = new(Byte(), Byte());
+            var upvalueCount = Count(2); Require(upvalueCount <= 255);
+            var upvalues = new LuaUpvalue[upvalueCount]; for (var i = 0; i < upvalues.Length; i++) upvalues[i] = new(Byte(), Byte());
             var childCount = Count(40);
             if (childCount > MaxFunctions - _functions) throw new AnalysisException("LuaResourceLimit", "Lua function limit exceeded.");
             var children = new LuaPrototype[childCount]; for (var i = 0; i < childCount; i++) children[i] = Prototype(depth + 1);
-            var lines = new int[Count(4)]; Require(lines.Length == 0 || lines.Length == code.Length);
+            var lineCount = Count(4); Require(lineCount == 0 || lineCount == code.Length);
+            var lines = new int[lineCount];
             for (var i = 0; i < lines.Length; i++) lines[i] = Int();
             var locals = new LuaLocal[Count(9)];
             for (var i = 0; i < locals.Length; i++)
@@ -179,10 +181,12 @@ internal static class LuaChunkReader
                 var name = String(); var start = Int(); var end = Int(); Require(name != null && start <= end && end <= code.Length);
                 locals[i] = new(name!, start, end);
             }
-            var names = new string[Count(1)]; Require(names.Length == 0 || names.Length == upvalues.Length);
+            var nameCount = Count(1); Require(nameCount == 0 || nameCount == upvalues.Length);
+            var names = new string[nameCount];
             for (var i = 0; i < names.Length; i++) { var name = String(); Require(name != null); names[i] = name!; }
             return new() { Source = source, FirstLine = first, LastLine = last, Parameters = parameters, Vararg = vararg, MaxStack = stack,
                 Code = code, Constants = constants, Upvalues = upvalues, Children = children, Lines = lines, Locals = locals, UpvalueNames = names };
         }
     }
 }
+

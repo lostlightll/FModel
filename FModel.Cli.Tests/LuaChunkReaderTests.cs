@@ -6,7 +6,7 @@ namespace FModel.Cli.Tests;
 public sealed class LuaChunkReaderTests
 {
     private static uint Abc(int op, int a = 0, int b = 0, int c = 0) => (uint)(op | a << 6 | b << 23 | c << 14);
-    private static byte[] Chunk(uint[]? code = null, int nesting = 0, byte[]? constant = null, bool bigEndian = false, int sizeT = 8)
+    private static byte[] Chunk(uint[]? code = null, int nesting = 0, byte[]? constant = null, bool bigEndian = false, int sizeT = 8, int childUpvalues = 0)
     {
         using var stream = new MemoryStream(); using var w = new BinaryWriter(stream);
         void I(int n) { var b = BitConverter.GetBytes(n); if (bigEndian) Array.Reverse(b); w.Write(b); }
@@ -18,7 +18,9 @@ public sealed class LuaChunkReaderTests
             w.Write((byte)0); I(0); I(0); w.Write(new byte[] {0,0,2});
             var instructions = code ?? [Abc(38, b: 1)]; I(instructions.Length); foreach (var word in instructions) I(unchecked((int)word));
             I(constant == null ? 0 : 1); if (constant != null) { w.Write((byte)4); w.Write((byte)(constant.Length + 1)); w.Write(constant); }
-            I(0); I(level > 0 ? 1 : 0); if (level > 0) P(level - 1); I(0); I(0); I(0);
+            var upvalues = level < nesting ? childUpvalues : 0;
+            I(upvalues); for (var u = 0; u < upvalues; u++) w.Write(new byte[] {1,0});
+            I(level > 0 ? 1 : 0); if (level > 0) P(level - 1); I(0); I(0); I(0);
         }
         P(nesting); return stream.ToArray();
     }
@@ -26,6 +28,12 @@ public sealed class LuaChunkReaderTests
     [InlineData(false,4)] [InlineData(false,8)] [InlineData(true,4)] [InlineData(true,8)]
     public void ReadsStandardHeaders(bool bigEndian, int sizeT)
         => Assert.Equal("lua53", LuaChunkReader.Read(Chunk(bigEndian: bigEndian, sizeT: sizeT)).Dialect);
+    [Fact]
+    public void BoundsChildUpvalueCountBeforeAllocating()
+    {
+        Assert.Equal(255, LuaChunkReader.Read(Chunk(nesting: 1, childUpvalues: 255), "lua53").Main.Children[0].Upvalues.Length);
+        Assert.Equal("InvalidLuaBytecode", Assert.Throws<AnalysisException>(() => LuaChunkReader.Read(Chunk(nesting: 1, childUpvalues: 256), "lua53")).Code);
+    }
     [Fact]
     public void ReadsTencentReturnPermutation()
     {
@@ -72,3 +80,4 @@ public sealed class LuaChunkReaderTests
         Assert.Throws<AnalysisException>(() => LuaChunkReader.Read(Chunk([Abc(30),Abc(38,b:1)]), "lua53"));
     }
 }
+
