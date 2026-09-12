@@ -7,5 +7,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../CUE4Parse/CUE4Parse/CUE4Parse.csproj" />
+    <InternalsVisibleTo Include="FModel.Cli.Tests" />
   </ItemGroup>
 </Project>

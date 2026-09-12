@@ -17,22 +17,25 @@ public sealed class GameProfile
     public string? Mappings { get; set; }
 }
 
-internal sealed class GameSession : IDisposable
+internal sealed partial class GameSession : IDisposable
 {
     public DefaultFileProvider Provider { get; }
     public string OutputRoot { get; }
 
-    public GameSession(GameProfile profile)
+    public GameSession(GameProfile profile, bool export = false)
     {
         if (!Enum.TryParse<EGame>(profile.Game, out var game) || !Enum.IsDefined(game))
             throw new ArgumentException("Unknown game enum.");
         if (!Directory.Exists(profile.Directory)) throw new DirectoryNotFoundException("Game directory not found.");
-        if (!Path.IsPathFullyQualified(profile.Directory) || !Path.IsPathFullyQualified(profile.OutputDirectory))
-            throw new ArgumentException("Game and output directories must be absolute paths.");
-        OutputRoot = Path.GetFullPath(profile.OutputDirectory);
-        if (OutputFiles.IsWithin(OutputRoot, profile.Directory) || OutputFiles.IsWithin(profile.Directory, OutputRoot))
-            throw new ArgumentException("Game and output directories must not overlap.");
-        OutputFiles.RejectLinks(OutputRoot);
+        if (!Path.IsPathFullyQualified(profile.Directory)) throw new ArgumentException("Game directory must be absolute.");
+        OutputRoot = profile.OutputDirectory;
+        if (export)
+        {
+            if (!Path.IsPathFullyQualified(OutputRoot)) throw new ArgumentException("Output directory must be absolute.");
+            if (OutputFiles.IsWithin(OutputRoot, profile.Directory) || OutputFiles.IsWithin(profile.Directory, OutputRoot))
+                throw new ArgumentException("Game and output directories must not overlap.");
+            OutputFiles.RejectLinks(OutputRoot);
+        }
         var key = Environment.GetEnvironmentVariable(profile.AesKeyEnvironmentVariable) ?? profile.AesKey;
         if (string.IsNullOrWhiteSpace(key)) throw new ArgumentException("Set the profile AES environment variable or local AesKey.");
         FAesKey aes;

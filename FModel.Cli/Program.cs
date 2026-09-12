@@ -4,15 +4,16 @@ using Serilog;
 
 var stdout = Console.Out;
 // CUE4Parse and native helpers must not contaminate machine-readable stdout.
-Console.SetOut(Console.Error);
-Log.Logger = new LoggerConfiguration().MinimumLevel.Warning().WriteTo.Console(standardErrorFromLevel: Serilog.Events.LogEventLevel.Verbose).CreateLogger();
+Console.SetOut(TextWriter.Null);
+// Third-party diagnostics may embed AES/configuration values. Only emit our safe errors.
+Log.Logger = new LoggerConfiguration().CreateLogger();
 var stage = "arguments";
 try
 {
     var options = CliOptions.Parse(args);
     if (options.Command == "help")
     {
-        stdout.WriteLine("FModel.Cli <mount|search|inspect|extract> --profile <absolute JSON path>\nsearch: [--query text] [--extension uasset] [--offset 0] [--limit 50 (max 200)]\ninspect/extract: --asset <virtual path from search>\nResults: JSON on stdout; diagnostics: stderr; exits: 0 success, 1 failure, 2 incomplete mount.\ninspect writes package exports as JSON; extract writes original package and sidecars. Existing outputs are never overwritten.");
+        stdout.WriteLine("FModel.Cli <mount|search|containers|list|diff|inspect|extract> --profile <JSON path>\ncontainers/list/search: [--query text] [--offset 0] [--limit 50 (max 200)]\nlist: --container <name or absolute path>\ndiff: --container <target> --asset <exact virtual path> [--against <old container>] [--max-differences 100 (max 1000)] [--max-depth 32 (max 64)] [--max-nodes 100000 (max 2000000)]\nsearch: [--extension uasset]\ninspect/extract: --asset <virtual path> [--output-directory <path>]\nJSON stdout; exits: 0 success, 1 failure, 2 incomplete mount. Read commands create no exports. Diff before=old, after=target; automatic predecessor uses strictly lower ReadOrder, ties are errors. inspect/extract never overwrite existing files.");
         return 0;
     }
     stage = "profile";
@@ -21,10 +22,12 @@ try
         new JsonSerializerSettings { MissingMemberHandling = MissingMemberHandling.Error }) ?? throw new ArgumentException("Empty profile.");
     var profileDirectory = Path.GetDirectoryName(profilePath)!;
     profile.Directory = ProfilePaths.Resolve(profile.Directory, profileDirectory);
-    profile.OutputDirectory = ProfilePaths.Resolve(profile.OutputDirectory, profileDirectory);
+    var export = options.Command is "inspect" or "extract";
+    if (export) profile.OutputDirectory = options.Optional("output-directory") is { } output
+        ? Path.GetFullPath(output) : ProfilePaths.Resolve(profile.OutputDirectory, profileDirectory);
     if (profile.Mappings is not null) profile.Mappings = ProfilePaths.Resolve(profile.Mappings, profileDirectory);
     stage = "mount";
-    using var session = new GameSession(profile);
+    using var session = new GameSession(profile, export);
     var complete = session.Provider.MountedVfs.Count > 0 && session.Provider.UnloadedVfs.Count == 0;
     if (options.Command == "mount" || session.Provider.MountedVfs.Count == 0)
     {
@@ -35,12 +38,20 @@ try
     var result = options.Command switch
     {
         "search" => session.Search(options),
+        "containers" => session.Containers(options),
+        "list" => session.ListContainer(options),
+        "diff" => session.Diff(options),
         "inspect" => session.Inspect(options.Required("asset")),
         "extract" => session.Extract(options.Required("asset")),
         _ => throw new ArgumentException("Unknown command.")
     };
     stdout.WriteLine(JsonConvert.SerializeObject(new { ok = true, mountComplete = complete, result }));
     return complete ? 0 : 2;
+}
+catch (AnalysisException exception)
+{
+    stdout.WriteLine(JsonConvert.SerializeObject(new { ok = false, stage, error = exception.Code, message = exception.Message, candidates = exception.Candidates }));
+    return 1;
 }
 catch (Exception exception)
 {

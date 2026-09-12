@@ -9,10 +9,9 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.6.0" />
     <PackageReference Include="xunit.v3" Version="3.2.2" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" PrivateAssets="all" />
     <Using Include="Xunit" />
-    <Compile Include="../FModel.Cli/CliOptions.cs" Link="CliOptions.cs" />
-    <Compile Include="../FModel.Cli/OutputFiles.cs" Link="OutputFiles.cs" />
-    <Compile Include="../FModel.Cli/ProfilePaths.cs" Link="ProfilePaths.cs" />
+    <ProjectReference Include="../FModel.Cli/FModel.Cli.csproj" />
   </ItemGroup>
 </Project>

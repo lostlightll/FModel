@@ -21,7 +21,10 @@ public sealed record CliOptions(string Command, IReadOnlyDictionary<string, stri
         {
             "mount" => new[] { "profile" },
             "search" => ["profile", "query", "extension", "offset", "limit"],
-            "inspect" or "extract" => ["profile", "asset"],
+            "containers" => ["profile", "query", "offset", "limit"],
+            "list" => ["profile", "container", "query", "offset", "limit"],
+            "diff" => ["profile", "container", "asset", "against", "max-differences", "max-depth", "max-nodes"],
+            "inspect" or "extract" => ["profile", "asset", "output-directory"],
             _ => throw new ArgumentException("Unknown command. Use --help.")
         };
         var values = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -33,9 +36,13 @@ public sealed record CliOptions(string Command, IReadOnlyDictionary<string, stri
         }
         var result = new CliOptions(args[0], values);
         result.Required("profile");
-        if (args[0] is "inspect" or "extract") result.Required("asset");
+        if (args[0] is "inspect" or "extract" or "diff") result.Required("asset");
+        if (args[0] is "list" or "diff") result.Required("container");
         result.Number("offset", 0, 0, int.MaxValue);
         result.Number("limit", 50, 1, 200);
+        result.Number("max-differences", 100, 1, 1000);
+        result.Number("max-depth", 32, 1, 64);
+        result.Number("max-nodes", 100000, 1, 2000000);
         return result;
     }
 }
